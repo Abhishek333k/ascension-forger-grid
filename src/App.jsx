@@ -1,21 +1,136 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, processWorkoutAndLevelUp, getXPRequiredForLevel, ensurePlayerInitialized } from './db';
-import { 
-  Wifi, 
-  WifiOff, 
-  Dumbbell, 
-  Activity, 
-  TrendingUp, 
-  Plus, 
-  Layers, 
-  Zap, 
-  Heart, 
-  Shield, 
-  CheckCircle, 
-  CloudLightning,
-  AlertCircle
-} from 'lucide-react';
+
+// Custom SVG-based Cybernetic Radar Chart (Lightweight, Offline-Ready, No Dependencies)
+function RadarChart({ stats }) {
+  const cx = 100;
+  const cy = 100;
+  const r = 60;
+  const labels = ['STR', 'END', 'AGI', 'VIT', 'CORE'];
+  const keys = ['str', 'end', 'agi', 'vit', 'core'];
+  
+  // Safe value maps
+  const values = keys.map(k => stats[k] || 10);
+  const maxVal = Math.max(15, ...values) * 1.15;
+
+  const getCoordinates = (index, value) => {
+    const angle = (index * 2 * Math.PI / 5) - Math.PI / 2;
+    const factor = value / maxVal;
+    const x = cx + r * factor * Math.cos(angle);
+    const y = cy + r * factor * Math.sin(angle);
+    return { x, y };
+  };
+
+  // 4 concentric grid rings (25%, 50%, 75%, 100%)
+  const gridPentagons = [0.25, 0.5, 0.75, 1.0].map((lvl) => {
+    return Array.from({ length: 5 }).map((_, i) => {
+      const coord = getCoordinates(i, maxVal * lvl);
+      return `${coord.x},${coord.y}`;
+    }).join(' ');
+  });
+
+  const dataPoints = keys.map((key, i) => getCoordinates(i, stats[key] || 10));
+  const dataPathString = dataPoints.map(p => `${p.x},${p.y}`).join(' ');
+
+  // Position labels slightly offset from max radius
+  const labelPositions = Array.from({ length: 5 }).map((_, i) => {
+    const angle = (i * 2 * Math.PI / 5) - Math.PI / 2;
+    const offsetR = r + 15;
+    const x = cx + offsetR * Math.cos(angle);
+    const y = cy + offsetR * Math.sin(angle);
+    return { x, y };
+  });
+
+  return (
+    <svg viewBox="0 0 200 200" className="w-full h-full max-h-[220px] mx-auto select-none">
+      <defs>
+        <radialGradient id="radarGlow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#ff003c" stopOpacity="0.35" />
+          <stop offset="100%" stopColor="#ff003c" stopOpacity="0.0" />
+        </radialGradient>
+      </defs>
+      
+      {/* Outer grid rings */}
+      {gridPentagons.map((points, idx) => (
+        <polygon 
+          key={idx} 
+          points={points} 
+          fill="none" 
+          stroke="rgba(255, 0, 60, 0.25)" 
+          strokeWidth="0.75" 
+          strokeDasharray={idx === 3 ? "none" : "2,2"}
+        />
+      ))}
+
+      {/* Axis wires */}
+      {Array.from({ length: 5 }).map((_, i) => {
+        const coord = getCoordinates(i, maxVal);
+        return (
+          <line 
+            key={i} 
+            x1={cx} 
+            y1={cy} 
+            x2={coord.x} 
+            y2={coord.y} 
+            stroke="rgba(255, 0, 60, 0.2)" 
+            strokeWidth="0.75"
+          />
+        );
+      })}
+
+      {/* Attributes Polygon */}
+      <polygon 
+        points={dataPathString} 
+        fill="url(#radarGlow)" 
+        stroke="#ff003c" 
+        strokeWidth="1.5"
+        className="drop-shadow-[0_0_6px_rgba(255,0,60,0.5)]"
+      />
+
+      {/* Neon data points */}
+      {dataPoints.map((pt, i) => (
+        <circle 
+          key={i} 
+          cx={pt.x} 
+          cy={pt.y} 
+          r="2.5" 
+          fill="#fce100" 
+          stroke="#fff" 
+          strokeWidth="0.5" 
+        />
+      ))}
+
+      {/* Text labels (STR, END, AGI, VIT, CORE) */}
+      {labels.map((lbl, i) => {
+        const pos = labelPositions[i];
+        let textAnchor = "middle";
+        if (i === 1 || i === 2) textAnchor = "start";
+        if (i === 3 || i === 4) textAnchor = "end";
+        
+        // Fine-tune Y offset for text alignment
+        let dy = 3;
+        if (i === 0) dy = -5;
+        if (i === 2 || i === 3) dy = 6;
+
+        return (
+          <text 
+            key={lbl} 
+            x={pos.x} 
+            y={pos.y + dy} 
+            fill="#00f0ff" 
+            fontSize="8px" 
+            fontWeight="bold"
+            fontFamily="'Share Tech Mono', monospace"
+            textAnchor={textAnchor}
+          >
+            {lbl}
+          </text>
+        );
+      })}
+    </svg>
+  );
+}
 
 export default function App() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -24,7 +139,12 @@ export default function App() {
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState('');
 
-  // 1. Listen for network changes
+  // Level Up Breached State (Phase 2 Visual Alerts)
+  const [showLevelUp, setShowLevelUp] = useState(false);
+  const [levelUpData, setLevelUpData] = useState({ old: 1, new: 1 });
+  const prevLevelRef = useRef(null);
+
+  // Network State and player bootstrap setup
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
@@ -36,8 +156,6 @@ export default function App() {
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-
-    // Initial check
     ensurePlayerInitialized();
 
     return () => {
@@ -46,342 +164,396 @@ export default function App() {
     };
   }, []);
 
-  // 2. Fetch live data from Dexie.js
+  // Live query indices
   const player = useLiveQuery(() => db.player_status.get('player_1'));
   const workoutLogs = useLiveQuery(() => 
     db.workout_logs.orderBy('timestamp').reverse().toArray()
-  );
-
+  ) || [];
   const unsyncedCount = useLiveQuery(() => 
     db.workout_logs.where('sync_status').equals(0).count()
-  );
+  ) || 0;
 
-  // 3. Automatical sync when network flips to online
+  // Intercept rating rank ups (Phase 2)
+  useEffect(() => {
+    if (player && player.current_level) {
+      if (prevLevelRef.current !== null && player.current_level > prevLevelRef.current) {
+        setLevelUpData({ old: prevLevelRef.current, new: player.current_level });
+        setShowLevelUp(true);
+      }
+      prevLevelRef.current = player.current_level;
+    }
+  }, [player?.current_level]);
+
+  // Sync Telemetry Mock
   const triggerSync = async () => {
     const unsynced = await db.workout_logs.where('sync_status').equals(0).toArray();
     if (unsynced.length === 0) return;
 
     setSyncing(true);
-    setSyncMessage(`Syncing ${unsynced.length} workout logs to grid...`);
+    setSyncMessage(`Pushing ${unsynced.length} records to cloud...`);
 
     try {
-      // Simulate API latency/sync to cloud
       await new Promise((resolve) => setTimeout(resolve, 1500));
-      
-      // Update all unsynced items to sync_status: 1
       await db.transaction('rw', db.workout_logs, async () => {
         for (const log of unsynced) {
           log.sync_status = 1;
           await db.workout_logs.put(log);
         }
       });
-      setSyncMessage('Sync complete. Cloud nodes updated.');
+      setSyncMessage('Uplink synchronized successfully.');
     } catch (err) {
-      console.error('Sync failed:', err);
-      setSyncMessage('Sync failed. Retrying later.');
+      console.error('Uplink synchronization failed:', err);
+      setSyncMessage('Uplink failed. Local buffer preserved.');
     } finally {
       setTimeout(() => {
         setSyncing(false);
         setSyncMessage('');
-      }, 3000);
+      }, 2500);
     }
   };
 
-  // 4. Handle manual workout submission
+  // Submit manual training sequence
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (intensity <= 0) return;
-
     await processWorkoutAndLevelUp(activity, intensity, isOnline);
-    setIntensity(10); // reset input
+    setIntensity(10);
   };
 
-  // 5. Calculate leveling variables
+  // Data Sovereignty (Phase 3)
+  const exportTelemetry = async () => {
+    const statusData = await db.player_status.toArray();
+    const logsData = await db.workout_logs.toArray();
+    const dataStr = JSON.stringify({ player_status: statusData, workout_logs: logsData }, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `vf_node_telemetry_${Date.now()}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const hardResetNode = async () => {
+    if (window.confirm("WARNING: INITIALIZING COMPLETE SYSTEM PURGE. ALL LOCAL DATA WILL BE DELETED. PROCEED?")) {
+      await db.transaction('rw', db.player_status, db.workout_logs, async () => {
+        await db.player_status.clear();
+        await db.workout_logs.clear();
+      });
+      await ensurePlayerInitialized();
+      window.location.reload();
+    }
+  };
+
+  // Calculations
   const currentLevel = player?.current_level || 1;
   const currentXp = player?.total_xp || 0;
   const xpNeeded = getXPRequiredForLevel(currentLevel);
   const xpPercent = Math.min(100, Math.floor((currentXp / xpNeeded) * 100));
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col selection:bg-emerald-500 selection:text-black">
-      {/* Top Banner & Network Monitor (Interface C) */}
-      <header className="border-b border-neutral-800 bg-neutral-900/60 backdrop-blur-md sticky top-0 z-50 px-4 py-3 sm:px-6">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded border border-emerald-500/50 flex items-center justify-center bg-emerald-950/20 shadow-[0_0_10px_rgba(16,185,129,0.1)]">
-              <span className="font-mono text-emerald-500 font-bold text-sm tracking-tighter">AFG</span>
-            </div>
-            <div>
-              <h1 className="text-lg font-extrabold tracking-wide uppercase text-neutral-200">
-                Ascension Forger <span className="text-emerald-500">Grid</span>
-              </h1>
-              <p className="text-[10px] font-mono text-neutral-500 uppercase tracking-widest">
-                Offline-First PWA Engine
-              </p>
-            </div>
-          </div>
+    <div className="p-3 sm:p-5 min-h-screen bg-[#050102] flex flex-col justify-center items-center relative overflow-hidden font-rajdhani selection:bg-cpRed selection:text-black">
+      {/* Visual backgrounds */}
+      <div className="bg-matrix"></div>
+      <div className="scanlines"></div>
 
-          <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-            {/* Sync Notifications */}
+      {/* Level Up Flashing Alert Modal (Phase 2 Visual Alerts) */}
+      {showLevelUp && (
+        <div className="fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-center backdrop-blur-md p-4">
+          <div className="bg-[#20050a] border-2 border-[#ff003c] p-6 sm:p-8 max-w-md w-full hex-cut shadow-[0_0_50px_rgba(255,0,60,0.6)] animate-warning-flash text-center relative">
+            <div className="absolute top-2 right-3 font-mono text-[9px] text-[#ff003c]/60">SYS_INTERCEPT_ALARM</div>
+            
+            <h2 className="text-[#ff003c] text-xl sm:text-2xl font-black uppercase tracking-widest mb-4 border-b border-[#ff003c]/30 pb-2 animate-text-glitch">
+              RATING_UPGRADE_DETECTED
+            </h2>
+            
+            <div className="bg-black/60 border border-[#ff003c]/30 p-4 mb-6">
+              <p className="text-white/80 font-mono text-xs leading-relaxed mb-4">
+                OPERATOR OUTPUT RATING HAS COMPLETED SYNTACTIC BREACH. EVOLVING SYSTEM STATE...
+              </p>
+              
+              <div className="flex justify-center items-center gap-6 font-mono text-2xl font-black">
+                <div className="text-white/50">
+                  <span className="block text-[9px] text-white/30">PREV_RATING</span>
+                  {levelUpData.old}
+                </div>
+                <div className="text-[#00f0ff] animate-pulse">➔</div>
+                <div className="text-[#fce100] drop-shadow-[0_0_10px_rgba(252,225,0,0.6)]">
+                  <span className="block text-[9px] text-white/30">NEW_RATING</span>
+                  {levelUpData.new}
+                </div>
+              </div>
+            </div>
+            
+            <button 
+              onClick={() => setShowLevelUp(false)} 
+              className="w-full bg-[#ff003c] text-black font-extrabold uppercase py-2.5 tracking-widest text-xs hover:bg-white hover:text-[#ff003c] transition-colors cp-cut-both"
+            >
+              [ CONFIRM EVOLUTION SEQUENCE ]
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Main Terminal Frame */}
+      <div className="relative z-10 flex-1 w-full max-w-6xl bg-[rgba(20,2,5,0.85)] backdrop-blur-xl border-2 border-[#ff003c] hex-cut p-4 md:p-6 flex flex-col gap-4 shadow-[inset_0_0_50px_rgba(255,0,60,0.2)]">
+        
+        {/* Terminal Header */}
+        <header className="flex flex-col sm:flex-row gap-3 sm:gap-0 justify-between items-center border-b border-[#ff003c]/30 pb-4 shrink-0">
+          <div>
+            <h1 className="text-2xl font-black tracking-widest text-[#ff003c] uppercase drop-shadow-[0_0_8px_rgba(255,0,60,0.4)]">
+              VAULT_FORGE // OS
+            </h1>
+            <p className="text-[9px] font-mono text-white/40 uppercase tracking-widest">
+              SECURE TELEMETRY INTERFACE // ACTIVE
+            </p>
+          </div>
+          
+          <div className="flex flex-wrap items-center gap-3 justify-center">
             {syncMessage && (
-              <span className="text-[11px] font-mono text-emerald-400 bg-emerald-950/30 border border-emerald-500/20 px-2.5 py-1 rounded animate-pulse">
+              <span className="text-[10px] font-mono text-[#00f0ff] bg-[#00f0ff]/10 border border-[#00f0ff]/30 px-2 py-0.5 rounded animate-pulse">
                 {syncMessage}
               </span>
             )}
-
-            {/* Network Flag */}
-            {isOnline ? (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-emerald-500/30 bg-emerald-950/20 text-emerald-400 text-xs font-semibold tracking-wide shadow-grid-glow">
-                <Wifi className="w-3.5 h-3.5 animate-pulse" />
-                <span className="font-mono uppercase text-[10px]">Grid Sync Active</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-red-500/30 bg-red-950/20 text-red-400 text-xs font-semibold tracking-wide shadow-grid-glow-red">
-                <WifiOff className="w-3.5 h-3.5" />
-                <span className="font-mono uppercase text-[10px]">Local Standalone Node</span>
-              </div>
-            )}
-          </div>
-        </div>
-      </header>
-
-      {/* Main Grid Content */}
-      <main className="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        {/* Left Column: Player Hub (Interface B) */}
-        <section className="lg:col-span-5 flex flex-col gap-6">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6 relative overflow-hidden shadow-2xl">
-            {/* Geometric accents */}
-            <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-2xl"></div>
-            <div className="absolute -left-4 -bottom-4 w-20 h-20 bg-emerald-500/5 rounded-full blur-xl"></div>
             
-            <div className="flex items-center justify-between border-b border-neutral-800 pb-4 mb-6">
-              <div className="flex items-center gap-2.5">
-                <Layers className="w-5 h-5 text-emerald-500" />
-                <h2 className="text-sm font-bold uppercase tracking-wider text-neutral-300">Player Profile</h2>
-              </div>
-              <span className="text-[10px] font-mono bg-neutral-800 text-neutral-400 px-2 py-0.5 rounded border border-neutral-700">
-                NODE_1
-              </span>
-            </div>
+            {/* Action Buttons (Phase 3 Data Sovereignty) */}
+            <button 
+              onClick={exportTelemetry} 
+              className="text-[#00f0ff] text-[10px] font-bold uppercase font-mono border border-[#00f0ff]/40 px-2 py-1 hover:bg-[#00f0ff] hover:text-black transition-colors"
+            >
+              [ EXPORT TELEMETRY ]
+            </button>
+            <button 
+              onClick={hardResetNode} 
+              className="text-[#ff003c] text-[10px] font-bold uppercase font-mono border border-[#ff003c]/40 px-2 py-1 hover:bg-[#ff003c] hover:text-black transition-colors"
+            >
+              [ RESET NODE ]
+            </button>
 
-            {/* Level & XP Gauge */}
-            <div className="flex items-center gap-5 mb-6">
-              <div className="w-20 h-20 rounded-xl bg-neutral-950 border border-neutral-800 flex flex-col items-center justify-center shadow-inner relative group">
-                <div className="absolute inset-0 border border-emerald-500/10 rounded-xl group-hover:border-emerald-500/30 transition-all duration-300"></div>
-                <span className="text-[10px] font-mono uppercase text-neutral-500 tracking-wider">LVL</span>
-                <span className="text-3xl font-extrabold text-emerald-400 font-mono tracking-tight">{currentLevel}</span>
-              </div>
-              
-              <div className="flex-1">
-                <div className="flex justify-between items-baseline mb-1.5">
-                  <span className="text-xs font-mono uppercase text-neutral-400">Grid Experience (XP)</span>
-                  <span className="text-xs font-mono text-emerald-400 font-bold">{currentXp} <span className="text-neutral-500">/ {xpNeeded}</span></span>
-                </div>
-                <div className="w-full h-3 bg-neutral-950 rounded-full overflow-hidden border border-neutral-800 p-[2px]">
-                  <div 
-                    className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 rounded-full transition-all duration-500 ease-out shadow-[0_0_8px_rgba(16,185,129,0.5)]" 
-                    style={{ width: `${xpPercent}%` }}
-                  ></div>
-                </div>
-                <p className="text-[10px] font-mono text-neutral-500 mt-1 uppercase text-right tracking-wider">
-                  {xpPercent}% TO NEXT FORGE
-                </p>
-              </div>
-            </div>
-
-            {/* Stats list */}
-            <div className="space-y-3">
-              <h3 className="text-xs font-bold uppercase tracking-widest text-neutral-400 mb-2">Attribute Grid</h3>
-              
-              {/* STR */}
-              <div className="flex items-center justify-between p-3 rounded bg-neutral-950 border border-neutral-800/80 hover:border-emerald-500/20 transition-all duration-200">
-                <div className="flex items-center gap-3">
-                  <Dumbbell className="w-4 h-4 text-emerald-500" />
-                  <span className="text-xs font-semibold uppercase tracking-wider text-neutral-300">Strength (STR)</span>
-                </div>
-                <span className="font-mono text-sm text-emerald-400 font-bold">{player?.str?.toFixed(1) || '10.0'}</span>
-              </div>
-
-              {/* END */}
-              <div className="flex items-center justify-between p-3 rounded bg-neutral-950 border border-neutral-800/80 hover:border-emerald-500/20 transition-all duration-200">
-                <div className="flex items-center gap-3">
-                  <Activity className="w-4 h-4 text-emerald-500" />
-                  <span className="text-xs font-semibold uppercase tracking-wider text-neutral-300">Endurance (END)</span>
-                </div>
-                <span className="font-mono text-sm text-emerald-400 font-bold">{player?.end?.toFixed(1) || '10.0'}</span>
-              </div>
-
-              {/* AGI */}
-              <div className="flex items-center justify-between p-3 rounded bg-neutral-950 border border-neutral-800/80 hover:border-emerald-500/20 transition-all duration-200">
-                <div className="flex items-center gap-3">
-                  <Zap className="w-4 h-4 text-emerald-500" />
-                  <span className="text-xs font-semibold uppercase tracking-wider text-neutral-300">Agility (AGI)</span>
-                </div>
-                <span className="font-mono text-sm text-emerald-400 font-bold">{player?.agi?.toFixed(1) || '10.0'}</span>
-              </div>
-
-              {/* VIT */}
-              <div className="flex items-center justify-between p-3 rounded bg-neutral-950 border border-neutral-800/80 hover:border-emerald-500/20 transition-all duration-200">
-                <div className="flex items-center gap-3">
-                  <Heart className="w-4 h-4 text-emerald-500" />
-                  <span className="text-xs font-semibold uppercase tracking-wider text-neutral-300">Vitality (VIT)</span>
-                </div>
-                <span className="font-mono text-sm text-emerald-400 font-bold">{player?.vit?.toFixed(1) || '10.0'}</span>
-              </div>
-
-              {/* CORE */}
-              <div className="flex items-center justify-between p-3 rounded bg-neutral-950 border border-neutral-800/80 hover:border-emerald-500/20 transition-all duration-200">
-                <div className="flex items-center gap-3">
-                  <Shield className="w-4 h-4 text-emerald-500" />
-                  <span className="text-xs font-semibold uppercase tracking-wider text-neutral-300">Core (CORE)</span>
-                </div>
-                <span className="font-mono text-sm text-emerald-400 font-bold">{player?.core?.toFixed(1) || '10.0'}</span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Right Column: Workout Entry (Interface A) & Sync Log (Interface C) */}
-        <section className="lg:col-span-7 flex flex-col gap-6">
-          
-          {/* Workout Entry Panel (Interface A) */}
-          <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-neutral-800 pb-4 mb-5">
-              <div className="flex items-center gap-2.5">
-                <Plus className="w-5 h-5 text-emerald-500" />
-                <h2 className="text-sm font-bold uppercase tracking-wider text-neutral-300">Log Activity</h2>
-              </div>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[10px] font-mono uppercase tracking-widest text-neutral-500 mb-1.5">
-                    Activity Type
-                  </label>
-                  <select 
-                    value={activity} 
-                    onChange={(e) => setActivity(e.target.value)}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded px-3.5 py-2.5 text-neutral-200 text-sm font-semibold tracking-wide focus:outline-none focus:border-emerald-500 transition-colors"
-                  >
-                    <option value="pushups">Pushups (Strength)</option>
-                    <option value="running">Running (Endurance)</option>
-                    <option value="pullups">Pullups (Agility)</option>
-                    <option value="squats">Squats (Vitality)</option>
-                    <option value="plank">Plank (Core)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-mono uppercase tracking-widest text-neutral-500 mb-1.5">
-                    {activity === 'running' ? 'Duration (mins)' : activity === 'plank' ? 'Duration (secs)' : 'Repetitions'}
-                  </label>
-                  <input 
-                    type="number" 
-                    min="1" 
-                    value={intensity} 
-                    onChange={(e) => setIntensity(Math.max(1, parseInt(e.target.value) || 0))}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded px-3.5 py-2 text-neutral-200 text-sm font-mono focus:outline-none focus:border-emerald-500 transition-colors"
-                  />
-                </div>
-              </div>
-
-              <button 
-                type="submit" 
-                className="w-full bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold uppercase tracking-widest py-3 px-4 rounded text-xs transition-all duration-200 shadow-[0_0_15px_rgba(16,185,129,0.2)] hover:shadow-grid-glow-strong flex items-center justify-center gap-2"
-              >
-                <CloudLightning className="w-4 h-4" />
-                Commit Workout to Local Grid
-              </button>
-            </form>
-          </div>
-
-          {/* Sync status & recent logs list (Interface C) */}
-          <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6 flex-1 flex flex-col shadow-2xl">
-            <div className="flex items-center justify-between border-b border-neutral-800 pb-4 mb-4">
-              <div className="flex items-center gap-2.5">
-                <TrendingUp className="w-5 h-5 text-emerald-500" />
-                <h2 className="text-sm font-bold uppercase tracking-wider text-neutral-300">Grid Activity Logs</h2>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                {unsyncedCount > 0 && (
-                  <button 
-                    disabled={!isOnline || syncing}
-                    onClick={triggerSync}
-                    className={`text-[10px] font-mono px-2.5 py-1 rounded border uppercase tracking-wider transition-all duration-200 ${
-                      isOnline 
-                        ? 'bg-emerald-950/20 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500 hover:text-black cursor-pointer' 
-                        : 'bg-neutral-800 text-neutral-600 border-neutral-700 cursor-not-allowed'
-                    }`}
-                  >
-                    Force Sync ({unsyncedCount})
-                  </button>
-                )}
-                <span className="text-[10px] font-mono text-neutral-500 uppercase">
-                  Total: {workoutLogs?.length || 0}
-                </span>
-              </div>
-            </div>
-
-            {/* List block */}
-            <div className="flex-1 overflow-y-auto max-h-[260px] space-y-2 pr-1">
-              {workoutLogs && workoutLogs.length > 0 ? (
-                workoutLogs.map((log) => (
-                  <div 
-                    key={log.id} 
-                    className="p-3 bg-neutral-950 rounded border border-neutral-850 flex items-center justify-between hover:border-neutral-750 transition-colors"
-                  >
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold uppercase tracking-wider text-neutral-200">
-                          {log.activity_type}
-                        </span>
-                        <span className="text-[10px] font-mono text-neutral-400">
-                          x{log.intensity_value}
-                        </span>
-                      </div>
-                      <span className="text-[9px] font-mono text-neutral-600">
-                        {new Date(log.timestamp).toLocaleString()}
-                      </span>
-                    </div>
-
-                    <div>
-                      {log.sync_status === 1 ? (
-                        <div className="flex items-center gap-1 text-[9px] font-mono uppercase text-emerald-500 bg-emerald-950/10 border border-emerald-500/10 px-2 py-0.5 rounded">
-                          <CheckCircle className="w-2.5 h-2.5" />
-                          Synced
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1 text-[9px] font-mono uppercase text-neutral-500 bg-neutral-900 border border-neutral-800 px-2 py-0.5 rounded">
-                          <AlertCircle className="w-2.5 h-2.5" />
-                          Local-Only
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))
+            {/* Network indicator */}
+            <div className="font-mono text-right text-[10px] uppercase font-bold pl-2 border-l border-white/15">
+              {isOnline ? (
+                <span className="text-[#00f0ff] animate-pulse">UPLINK: ONLINE</span>
               ) : (
-                <div className="h-full flex flex-col items-center justify-center text-center py-8">
-                  <Activity className="w-8 h-8 text-neutral-700 mb-2 animate-pulse" />
-                  <p className="text-xs font-mono text-neutral-500 uppercase">
-                    Grid is empty. Initiate active training.
-                  </p>
-                </div>
+                <span className="text-[#fce100] animate-pulse">UPLINK: OFFLINE</span>
               )}
             </div>
           </div>
-        </section>
-      </main>
+        </header>
 
-      {/* Footer stats */}
-      <footer className="border-t border-neutral-800 bg-neutral-950 px-4 py-3.5 sm:px-6">
-        <div className="max-w-6xl mx-auto flex justify-between items-center text-[10px] font-mono text-neutral-600 uppercase tracking-widest">
-          <span>Engine v1.0.0 (Local-First)</span>
-          <span>IndexedDB Status: OK</span>
+        {/* Workspace Panels */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 flex-1 min-h-0">
+          
+          {/* LEFT PANEL: Operator Profile & Attributes Map (Radar Component) */}
+          <section className="lg:col-span-5 flex flex-col gap-4">
+            
+            {/* Rating card */}
+            <div className="bg-black/55 border border-[#ff003c]/35 p-4 hex-cut-inv flex flex-col gap-4">
+              <div className="flex justify-between items-center border-b border-[#ff003c]/20 pb-2">
+                <span className="text-xs font-mono font-bold text-[#00f0ff] uppercase">OPERATOR_PROFILE</span>
+                <span className="text-[9px] font-mono bg-[#ff003c]/20 text-[#ff003c] px-2 py-0.5 rounded border border-[#ff003c]/30">NODE_01</span>
+              </div>
+              
+              <div className="flex items-center gap-5">
+                {/* Level Display */}
+                <div className="w-20 h-20 bg-black/90 border-2 border-[#ff003c] rounded flex flex-col items-center justify-center shadow-[0_0_15px_rgba(255,0,60,0.2)] relative">
+                  <span className="text-[9px] font-mono text-white/40 uppercase">OUTPUT_RATING</span>
+                  <span className="text-3xl font-black text-white font-mono tracking-tight drop-shadow-[0_0_10px_rgba(255,255,255,0.4)]">
+                    {currentLevel}
+                  </span>
+                </div>
+
+                {/* Progress bar */}
+                <div className="flex-1">
+                  <div className="flex justify-between items-baseline mb-1">
+                    <span className="text-[10px] font-mono uppercase text-white/50">OUTPUT_YIELD (XP)</span>
+                    <span className="text-xs font-mono text-[#00f0ff] font-bold">
+                      {currentXp} <span className="text-white/30">/ {xpNeeded}</span>
+                    </span>
+                  </div>
+                  <div className="w-full h-3 bg-black border border-[#ff003c]/30 p-[1.5px] rounded-none">
+                    <div 
+                      className="h-full bg-gradient-to-r from-[#ff003c] to-[#fce100] transition-all duration-500 ease-out shadow-[0_0_8px_rgba(255,0,60,0.5)]" 
+                      style={{ width: `${xpPercent}%` }}
+                    ></div>
+                  </div>
+                  <p className="text-[8px] font-mono text-white/40 mt-1 uppercase text-right tracking-widest">
+                    {xpPercent}% COMPRESSION TO NEXT RATING BREACH
+                  </p>
+                </div>
+              </div>
+
+              {/* Dynamic SVG Radar Chart Component (Phase 2 Objective) */}
+              <div className="border border-[#ff003c]/20 bg-black/40 p-2 relative flex items-center justify-center h-[230px]">
+                <div className="absolute top-2 left-2 font-mono text-[8px] text-[#ff003c]/40 uppercase">VISUALIZATION_DECK</div>
+                <RadarChart stats={player || { str: 10, end: 10, agi: 10, vit: 10, core: 10 }} />
+              </div>
+            </div>
+
+            {/* List of Attribute Levels */}
+            <div className="bg-black/40 border border-white/10 p-3 flex flex-col gap-2 flex-1 overflow-y-auto">
+              <span className="text-[10px] font-mono font-bold text-white/50 uppercase tracking-widest border-b border-white/10 pb-1 mb-1">
+                ATTRIBUTE_GRID
+              </span>
+              
+              {/* STR */}
+              <div className="flex items-center justify-between p-2 rounded bg-black/50 border border-[#ff003c]/20 hover:border-[#ff003c]/60 transition-colors">
+                <span className="text-xs font-semibold uppercase tracking-wider text-white/80">Strength (STR)</span>
+                <span className="font-mono text-sm text-[#00f0ff] font-bold">{player?.str?.toFixed(1) || '10.0'}</span>
+              </div>
+              {/* END */}
+              <div className="flex items-center justify-between p-2 rounded bg-black/50 border border-[#ff003c]/20 hover:border-[#ff003c]/60 transition-colors">
+                <span className="text-xs font-semibold uppercase tracking-wider text-white/80">Endurance (END)</span>
+                <span className="font-mono text-sm text-[#00f0ff] font-bold">{player?.end?.toFixed(1) || '10.0'}</span>
+              </div>
+              {/* AGI */}
+              <div className="flex items-center justify-between p-2 rounded bg-black/50 border border-[#ff003c]/20 hover:border-[#ff003c]/60 transition-colors">
+                <span className="text-xs font-semibold uppercase tracking-wider text-white/80">Agility (AGI)</span>
+                <span className="font-mono text-sm text-[#00f0ff] font-bold">{player?.agi?.toFixed(1) || '10.0'}</span>
+              </div>
+              {/* VIT */}
+              <div className="flex items-center justify-between p-2 rounded bg-black/50 border border-[#ff003c]/20 hover:border-[#ff003c]/60 transition-colors">
+                <span className="text-xs font-semibold uppercase tracking-wider text-white/80">Vitality (VIT)</span>
+                <span className="font-mono text-sm text-[#00f0ff] font-bold">{player?.vit?.toFixed(1) || '10.0'}</span>
+              </div>
+              {/* CORE */}
+              <div className="flex items-center justify-between p-2 rounded bg-black/50 border border-[#ff003c]/20 hover:border-[#ff003c]/60 transition-colors">
+                <span className="text-xs font-semibold uppercase tracking-wider text-white/80">Core (CORE)</span>
+                <span className="font-mono text-sm text-[#00f0ff] font-bold">{player?.core?.toFixed(1) || '10.0'}</span>
+              </div>
+            </div>
+
+          </section>
+
+          {/* RIGHT PANEL: Input Deck & Activity Log Ledger */}
+          <section className="lg:col-span-7 flex flex-col gap-4 min-h-0">
+            
+            {/* Input Deck (Action Committer form) */}
+            <div className="bg-black/50 border border-[#ff003c]/35 p-4 hex-cut shadow-[0_0_15px_rgba(255,0,60,0.15)] shrink-0">
+              <span className="text-xs font-mono font-bold text-[#fce100] uppercase block border-b border-[#ff003c]/20 pb-2 mb-4">
+                TRAINING_TELEMETRY_LOG
+              </span>
+
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-mono uppercase tracking-widest text-white/50 mb-1.5">
+                      Activity Protocol
+                    </label>
+                    <select 
+                      value={activity} 
+                      onChange={(e) => setActivity(e.target.value)}
+                      className="w-full bg-black/90 border border-[#ff003c]/50 text-[#fce100] text-xs font-mono p-2.5 outline-none focus:border-white transition-colors"
+                    >
+                      <option value="pushups">SYS.ACTION.PUSHUPS (STR)</option>
+                      <option value="running">SYS.ACTION.RUNNING (END)</option>
+                      <option value="pullups">SYS.ACTION.PULLUPS (AGI)</option>
+                      <option value="squats">SYS.ACTION.SQUATS (VIT)</option>
+                      <option value="plank">SYS.ACTION.PLANK (CORE)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-mono uppercase tracking-widest text-white/50 mb-1.5">
+                      {activity === 'running' ? 'Duration (MINUTES)' : activity === 'plank' ? 'Duration (SECONDS)' : 'Quantity (REPETITIONS)'}
+                    </label>
+                    <input 
+                      type="number" 
+                      min="1" 
+                      value={intensity} 
+                      onChange={(e) => setIntensity(Math.max(1, parseInt(e.target.value) || 0))}
+                      className="w-full bg-black/90 border border-[#ff003c]/50 text-white text-xs font-mono p-2 outline-none focus:border-white transition-colors"
+                    />
+                  </div>
+                </div>
+
+                <button 
+                  type="submit" 
+                  className="w-full btn-hybrid cp-cut-both py-3 font-mono font-bold text-xs tracking-widest"
+                >
+                  [ COMMIT TELEMETRY SEQUENCE ]
+                </button>
+              </form>
+            </div>
+
+            {/* Local Logs Ledger */}
+            <div className="bg-black/55 border border-white/10 p-4 flex flex-col flex-1 min-h-[220px] overflow-hidden">
+              <div className="flex justify-between items-center border-b border-white/10 pb-2 mb-3 shrink-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-mono font-bold text-[#fce100] uppercase">LOCAL_LEDGER_BUFFER</span>
+                  {unsyncedCount > 0 && (
+                    <button 
+                      disabled={!isOnline || syncing}
+                      onClick={triggerSync}
+                      className={`text-[9px] font-mono px-2 py-0.5 border uppercase tracking-wider transition-colors ${
+                        isOnline 
+                          ? 'bg-[#00f0ff]/10 text-[#00f0ff] border-[#00f0ff]/40 hover:bg-[#00f0ff] hover:text-black cursor-pointer' 
+                          : 'bg-neutral-800 text-neutral-500 border-neutral-700 cursor-not-allowed'
+                      }`}
+                    >
+                      Sync Buffer ({unsyncedCount})
+                    </button>
+                  )}
+                </div>
+                <span className="text-[10px] font-mono text-white/40">TOTAL_LOGS: {workoutLogs.length}</span>
+              </div>
+
+              {/* Logs loop */}
+              <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+                {workoutLogs.length > 0 ? (
+                  workoutLogs.map((log) => (
+                    <div 
+                      key={log.id} 
+                      className="p-2.5 bg-black/60 border border-white/5 flex items-center justify-between hover:border-[#ff003c]/40 transition-colors"
+                    >
+                      <div className="font-mono text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[#00f0ff] font-bold">sys@afg:~$</span>
+                          <span className="text-white uppercase font-bold tracking-wide">{log.activity_type}</span>
+                          <span className="text-white/40">//</span>
+                          <span className="text-[#fce100]">V:{log.intensity_value}</span>
+                        </div>
+                        <span className="text-[9px] text-white/30 block mt-0.5">
+                          {new Date(log.timestamp).toLocaleString()}
+                        </span>
+                      </div>
+
+                      <div>
+                        {log.sync_status === 1 ? (
+                          <span className="text-[9px] font-mono uppercase text-[#10b981] bg-[#10b981]/15 border border-[#10b981]/30 px-2 py-0.5">
+                            UPLINKED
+                          </span>
+                        ) : (
+                          <span className="text-[9px] font-mono uppercase text-[#fce100] bg-[#fce100]/15 border border-[#fce100]/30 px-2 py-0.5">
+                            BUFFERED
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="h-full flex flex-col items-center justify-center text-center py-10 opacity-40">
+                    <span className="text-xs font-mono text-white uppercase tracking-widest">
+                      Ledger buffer empty. Awaiting physical training.
+                    </span>
+                  </div>
+                )}
+              </div>
+
+            </div>
+
+          </section>
+
         </div>
-      </footer>
+
+        {/* Footer */}
+        <footer className="border-t border-[#ff003c]/20 pt-3 flex justify-between items-center text-[9px] font-mono text-white/30 uppercase tracking-widest shrink-0">
+          <span>VF_OS // NODE_NODE_LOCAL</span>
+          <span>SYSTEM_READY</span>
+        </footer>
+
+      </div>
     </div>
   );
 }
