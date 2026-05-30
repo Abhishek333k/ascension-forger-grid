@@ -3,29 +3,41 @@
 @tailwind utilities;
 
 :root {
+  --cp-yellow: #fce100;
   --cp-red: #ff003c;
   --cp-cyan: #00f0ff;
-  --cp-yellow: #fce100;
-  --cp-emerald: #10b981;
   --cp-dark: rgba(20, 2, 5, 0.85);
+  --app-brightness: 1;
+  --app-contrast: 1;
 }
 
 @layer base {
-  /* Scrollbars */
+  html, body, #root {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #050102;
+    color: #fff;
+    font-family: 'Rajdhani', sans-serif;
+  }
+
+  /* High-end cybernetic scrollbars */
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 4px;
+    height: 4px;
   }
   ::-webkit-scrollbar-track {
-    background: #050102;
+    background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: #3a111a;
-    border-radius: 3px;
-  }
-  ::-webkit-scrollbar-thumb:hover {
     background: var(--cp-red);
   }
+}
+
+.app-frame-layout {
+  clip-path: polygon(20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%, 0 20px);
+  box-shadow: inset 0 0 60px rgba(255,0,60,0.25), 0 0 50px rgba(0,0,0,0.8);
 }
 
 /* Background Matrix Dots */
@@ -35,10 +47,10 @@
   background-image: radial-gradient(rgba(255, 0, 60, 0.08) 1px, transparent 1px);
   background-size: 20px 20px;
   pointer-events: none;
-  z-index: 1;
+  z-index: 0;
 }
 
-/* Terminal Scanline overlay */
+/* Scanlines overlay */
 .scanlines {
   position: absolute;
   inset: 0;
@@ -47,60 +59,130 @@
     rgba(0, 0, 0, 0.25) 50%
   );
   background-size: 100% 4px;
-  z-index: 2;
+  z-index: 5;
   pointer-events: none;
 }
 
 /* Cybernetic clip paths */
 .hex-cut {
-  clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px);
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
 }
 
 .hex-cut-inv {
-  clip-path: polygon(0 0, calc(100% - 15px) 0, 100% 15px, 100% 100%, 15px 100%, 0 calc(100% - 15px));
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
 }
 
 .cp-cut-both {
-  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
 }
 
-/* High-Contrast Interactive Elements */
+.cp-cut-tr {
+  clip-path: polygon(0 0, calc(100% - 15px) 0, 100% 15px, 100% 100%, 0 100%);
+}
+
+/* Premium Buttons */
 .btn-hybrid {
-  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid var(--cp-red);
+  color: var(--cp-red);
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.15em;
-  transition: all 0.2s ease-in-out;
+  transition: all 0.2s;
   cursor: pointer;
-  border: 1px solid var(--cp-red);
-  background: rgba(255, 0, 60, 0.08);
-  color: var(--cp-red);
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(5px);
 }
 
 .btn-hybrid:hover {
   background: var(--cp-red);
-  color: #000000;
-  box-shadow: 0 0 15px rgba(255, 0, 60, 0.6);
+  color: #000;
+  box-shadow: 0 0 15px rgba(255, 0, 60, 0.5);
 }
 
-/* Animations for level ups and alarms */
+.btn-cyan {
+  border-color: var(--cp-cyan);
+  color: var(--cp-cyan);
+}
+.btn-cyan:hover {
+  background: var(--cp-cyan);
+  color: #000;
+  box-shadow: 0 0 15px rgba(0, 240, 255, 0.5);
+}
+
+.btn-yellow {
+  border-color: var(--cp-yellow);
+  color: var(--cp-yellow);
+}
+.btn-yellow:hover {
+  background: var(--cp-yellow);
+  color: #000;
+  box-shadow: 0 0 15px rgba(252, 225, 0, 0.5);
+}
+
+.btn-emerald {
+  border-color: #10b981;
+  color: #10b981;
+}
+.btn-emerald:hover {
+  background: #10b981;
+  color: #000;
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.5);
+}
+
+.cp-btn-ghost {
+  background-color: rgba(0, 240, 255, 0.05);
+  color: var(--cp-cyan);
+  border: 1px solid var(--cp-cyan);
+  text-transform: uppercase;
+  font-weight: 700;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+.cp-btn-ghost:hover {
+  background-color: var(--cp-cyan);
+  color: #000;
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
+}
+
+.cp-btn-danger {
+  background-color: rgba(255, 0, 60, 0.05);
+  color: var(--cp-red);
+  border: 1px solid var(--cp-red);
+  text-transform: uppercase;
+  font-weight: 700;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+.cp-btn-danger:hover {
+  background-color: var(--cp-red);
+  color: #fff;
+  box-shadow: 0 0 10px rgba(255, 0, 60, 0.4);
+}
+
+/* Table styling for terminal look */
+.table-container {
+  border-left: 2px solid var(--cp-red);
+  background: rgba(0,0,0,0.3);
+}
+
+/* Alarm Animations */
 @keyframes warning-flash {
   0%, 100% {
     background-color: rgba(255, 0, 60, 0.15);
     border-color: #ff003c;
-    box-shadow: 0 0 15px rgba(255, 0, 60, 0.1);
+    box-shadow: 0 0 15px rgba(255, 0, 60, 0.15);
   }
   50% {
-    background-color: rgba(255, 0, 60, 0.4);
+    background-color: rgba(255, 0, 60, 0.55);
     border-color: #ffffff;
-    box-shadow: 0 0 35px rgba(255, 0, 60, 0.6);
+    box-shadow: 0 0 35px rgba(255, 0, 60, 0.7);
   }
 }
 .animate-warning-flash {
-  animation: warning-flash 1.2s infinite;
+  animation: warning-flash 1s infinite;
 }
 
 @keyframes text-glitch {
@@ -112,5 +194,5 @@
   }
 }
 .animate-text-glitch {
-  animation: text-glitch 0.25s infinite;
+  animation: text-glitch 0.2s infinite;
 }
