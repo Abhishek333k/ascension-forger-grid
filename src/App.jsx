@@ -394,14 +394,9 @@ export default function App() {
         <div className="absolute bottom-[20px] right-[-15px] w-[20px] h-[20px] z-[101] pointer-events-none" style={{ borderBottom: '3px solid #fff', borderRight: '3px solid #fff' }}></div>
 
         {/* Windows Header Title Bar */}
-        <div className="title-bar shrink-0 flex justify-between items-center h-[30px] bg-[rgba(255,0,60,0.15)] border-b border-[#ff003c] px-4 z-40">
+        <div className="title-bar shrink-0 flex items-center h-[30px] bg-[rgba(255,0,60,0.15)] border-b border-[#ff003c] px-4 z-40">
           <div className="text-xs text-[#ff003c] font-bold tracking-widest font-mono uppercase">
             Ascension Forger Grid // OS <span className="text-white/50 text-[10px] ml-2">v1.0.0</span>
-          </div>
-          <div className="window-controls flex gap-3">
-            <button className="win-btn text-[#ff003c] font-black hover:text-white transition-colors text-sm">_</button>
-            <button className="win-btn text-[#ff003c] font-black hover:text-white transition-colors text-sm">[ ]</button>
-            <button onClick={hardResetNode} className="win-btn close text-[#ff003c] font-black hover:text-[#fce100] transition-colors text-sm">X</button>
           </div>
         </div>
 
