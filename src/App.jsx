@@ -2,12 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, processWorkoutAndLevelUp, getXPRequiredForLevel, ensurePlayerInitialized } from './db';
 
-// Custom SVG-based Cybernetic Radar Chart mapping non-vanity metrics
+// Custom SVG-based Cybernetic Radar Chart mapping normal baseline metrics
 function RadarChart({ stats }) {
   const cx = 100;
   const cy = 100;
   const r = 60;
-  const labels = ['FRC', 'KNT', 'VEL', 'MET', 'STB'];
+  const labels = ['STR', 'END', 'AGI', 'VIT', 'CORE'];
   const keys = ['str', 'end', 'agi', 'vit', 'core'];
   
   // Safe value maps
@@ -221,7 +221,7 @@ export default function App() {
 
     setSyncing(true);
     setSyncMessage(`Pushing ${unsynced.length} records to cloud...`);
-    showToast(`UPLINKING ${unsynced.length} TELEMETRY RECORDS...`);
+    showToast(`UPLINKING ${unsynced.length} ACTION COMMIT RECORDS...`);
 
     try {
       await new Promise((resolve) => setTimeout(resolve, 1500));
@@ -251,7 +251,7 @@ export default function App() {
     if (intensity <= 0) return;
     await processWorkoutAndLevelUp(activity, intensity, isOnline);
     setIntensity(10);
-    showToast('TELEMETRY COMMIT SUCCESSFUL.', 'deploy');
+    showToast('ACTION COMMIT REGISTRY COMPLETED.', 'deploy');
   };
 
   // CLI execution handler
@@ -275,30 +275,30 @@ export default function App() {
           const val = parseInt(parts[2]);
           
           // Map acronyms
-          if (type.includes('frc') || type.includes('force') || type.includes('push')) {
+          if (type.includes('str') || type.includes('strength') || type.includes('push')) {
             type = 'pushups';
-          } else if (type.includes('knt') || type.includes('kinetic') || type.includes('run')) {
+          } else if (type.includes('end') || type.includes('endurance') || type.includes('run')) {
             type = 'running';
-          } else if (type.includes('vel') || type.includes('velocity') || type.includes('pull')) {
+          } else if (type.includes('agi') || type.includes('agility') || type.includes('pull')) {
             type = 'pullups';
-          } else if (type.includes('met') || type.includes('metabolic') || type.includes('squat')) {
+          } else if (type.includes('vit') || type.includes('vitality') || type.includes('squat')) {
             type = 'squats';
-          } else if (type.includes('stb') || type.includes('stability') || type.includes('plank')) {
+          } else if (type.includes('core') || type.includes('plank')) {
             type = 'plank';
           }
           
           const validTypes = ['pushups', 'running', 'pullups', 'squats', 'plank'];
           if (validTypes.includes(type) && val > 0) {
             await processWorkoutAndLevelUp(type, val, isOnline);
-            showToast(`LOGGED ${type.toUpperCase()}: ${val} COMMITS`, 'deploy');
+            showToast(`COMMITTED ${type.toUpperCase()}: ${val}`, 'deploy');
           } else {
-            showToast(`INVALID PROTOCOL. TRY 'commit frc 15'`, 'error');
+            showToast(`INVALID PROTOCOL. TRY 'commit str 15'`, 'error');
           }
         } else {
           showToast(`SYNTAX: commit <protocol> <val>`, 'error');
         }
       } else if (cmd === 'help') {
-        showToast("CMDS: commit [frc|knt|vel|met|stb] [val] | sync | export | purge");
+        showToast("CMDS: commit [str|end|agi|vit|core] [val] | sync | export | purge");
       } else {
         showToast(`CMD NOT RECOGNIZED: '${cmd}'`, 'error');
       }
@@ -315,7 +315,7 @@ export default function App() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `vf_node_telemetry_${Date.now()}.json`;
+    link.download = `afg_telemetry_${Date.now()}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -355,7 +355,7 @@ export default function App() {
             <div className="absolute top-2 right-3 font-mono text-[9px] text-[#ff003c]/60">SYS_INTERCEPT_ALARM</div>
             
             <h2 className="text-[#ff003c] text-xl sm:text-2xl font-black uppercase tracking-widest mb-4 border-b border-[#ff003c]/30 pb-2 animate-text-glitch">
-              RATING_UPGRADE_DETECTED
+              OUTPUT_RATING_UPGRADE
             </h2>
             
             <div className="bg-black/60 border border-[#ff003c]/30 p-4 mb-6">
@@ -396,7 +396,7 @@ export default function App() {
         {/* Windows Header Title Bar */}
         <div className="title-bar shrink-0 flex justify-between items-center h-[30px] bg-[rgba(255,0,60,0.15)] border-b border-[#ff003c] px-4 z-40">
           <div className="text-xs text-[#ff003c] font-bold tracking-widest font-mono uppercase">
-            SilenVault // Vault_Forge_OS <span className="text-white/50 text-[10px] ml-2">v1.0.0</span>
+            Ascension Forger Grid // OS <span className="text-white/50 text-[10px] ml-2">v1.0.0</span>
           </div>
           <div className="window-controls flex gap-3">
             <button className="win-btn text-[#ff003c] font-black hover:text-white transition-colors text-sm">_</button>
@@ -412,10 +412,10 @@ export default function App() {
           <header className="bg-[rgba(0,0,0,0.4)] backdrop-blur-md border border-[#ff003c]/40 text-white p-4 flex flex-col sm:flex-row justify-between items-center gap-4 sm:gap-0 shrink-0 hex-cut shadow-[0_0_20px_rgba(255,0,60,0.15)]">
             <div>
               <h1 className="text-3xl sm:text-4xl font-black tracking-tighter uppercase text-[#ff003c] drop-shadow-[0_0_10px_rgba(255,0,60,0.5)]">
-                VAULT_FORGE
+                ASCENSION FORGER GRID
               </h1>
               <p className="text-[10px] sm:text-xs font-bold mt-1 opacity-70 font-mono uppercase text-white">
-                OS: SECURE TELEMETRY INTERFACE // OPERATOR NODE
+                OS: SECURE ACTION_COMMIT CONSOLE // OPERATOR NODE
               </p>
             </div>
             <div className="flex gap-2">
@@ -505,7 +505,7 @@ export default function App() {
                 {/* Progress bar */}
                 <div>
                   <div className="flex justify-between items-baseline mb-1">
-                    <span className="text-[9px] font-mono uppercase text-white/50">YIELD_PROGRESS (COEFFICIENT)</span>
+                    <span className="text-[9px] font-mono uppercase text-white/50">YIELD_PROGRESS</span>
                     <span className="text-xs font-mono text-[#00f0ff] font-bold">
                       {currentXp} <span className="text-white/30">/ {xpNeeded}</span>
                     </span>
@@ -536,34 +536,34 @@ export default function App() {
                 
                 {/* STR */}
                 <div className="flex items-center justify-between p-2 bg-black/50 border border-[#ff003c]/20 hover:border-[#ff003c]/60 transition-colors">
-                  <span className="text-xs font-bold uppercase tracking-wider text-white/70">FORCE_OUTPUT (FRC)</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-white/70">STRENGTH (STR)</span>
                   <span className="font-mono text-xs text-[#00f0ff] font-bold">{player?.str?.toFixed(1) || '10.0'}</span>
                 </div>
                 {/* END */}
                 <div className="flex items-center justify-between p-2 bg-black/50 border border-[#ff003c]/20 hover:border-[#ff003c]/60 transition-colors">
-                  <span className="text-xs font-bold uppercase tracking-wider text-white/77">KINETIC_CAPACITY (KNT)</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-white/77">ENDURANCE (END)</span>
                   <span className="font-mono text-xs text-[#00f0ff] font-bold">{player?.end?.toFixed(1) || '10.0'}</span>
                 </div>
                 {/* AGI */}
                 <div className="flex items-center justify-between p-2 bg-black/50 border border-[#ff003c]/20 hover:border-[#ff003c]/60 transition-colors">
-                  <span className="text-xs font-bold uppercase tracking-wider text-white/77">VELOCITY_INDEX (VEL)</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-white/77">AGILITY (AGI)</span>
                   <span className="font-mono text-xs text-[#00f0ff] font-bold">{player?.agi?.toFixed(1) || '10.0'}</span>
                 </div>
                 {/* VIT */}
                 <div className="flex items-center justify-between p-2 bg-black/50 border border-[#ff003c]/20 hover:border-[#ff003c]/60 transition-colors">
-                  <span className="text-xs font-bold uppercase tracking-wider text-white/77">METABOLIC_RESERVE (MET)</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-white/77">VITALITY (VIT)</span>
                   <span className="font-mono text-xs text-[#00f0ff] font-bold">{player?.vit?.toFixed(1) || '10.0'}</span>
                 </div>
                 {/* CORE */}
                 <div className="flex items-center justify-between p-2 bg-black/50 border border-[#ff003c]/20 hover:border-[#ff003c]/60 transition-colors">
-                  <span className="text-xs font-bold uppercase tracking-wider text-white/77">STABILITY_FACTOR (STB)</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-white/77">CORE (CORE)</span>
                   <span className="font-mono text-xs text-[#00f0ff] font-bold">{player?.core?.toFixed(1) || '10.0'}</span>
                 </div>
               </div>
 
             </section>
 
-            {/* Right Column: Telemetry Commit input & Database Log list */}
+            {/* Right Column: Action Commit input & Database Log list */}
             <section className="lg:col-span-7 flex flex-col gap-4 min-h-0 lg:overflow-hidden">
               
               {/* Input Committer panel */}
@@ -583,11 +583,11 @@ export default function App() {
                         onChange={(e) => setActivity(e.target.value)}
                         className="w-full bg-black/90 border border-[#ff003c]/50 text-[#fce100] text-xs font-mono p-2 outline-none focus:border-white transition-colors"
                       >
-                        <option value="pushups">FRC_COMPRESSION (Pushups)</option>
-                        <option value="running">KNT_EXCURSION (Running)</option>
-                        <option value="pullups">VEL_TRACTION (Pullups)</option>
-                        <option value="squats">MET_LOAD (Squats)</option>
-                        <option value="plank">STB_SUSPENSION (Plank)</option>
+                        <option value="pushups">Pushups (STR)</option>
+                        <option value="running">Running (END)</option>
+                        <option value="pullups">Pullups (AGI)</option>
+                        <option value="squats">Squats (VIT)</option>
+                        <option value="plank">Plank (CORE)</option>
                       </select>
                     </div>
 
@@ -609,12 +609,12 @@ export default function App() {
                     type="submit" 
                     className="w-full btn-hybrid cp-cut-both py-2.5 font-mono font-bold text-xs tracking-widest"
                   >
-                    [ EXECUTE TELEMETRY ENTRY ]
+                    [ EXECUTE ACTION COMMIT ]
                   </button>
                 </form>
               </div>
 
-              {/* Table Ledger view (replacing standard lists) */}
+              {/* Table Ledger view */}
               <div className="table-container flex-1 min-h-[220px] overflow-hidden flex flex-col bg-[rgba(10,1,3,0.6)] backdrop-blur-xl">
                 
                 {/* Table Title Bar */}
@@ -631,20 +631,19 @@ export default function App() {
                     <thead className="bg-[#0a0104] sticky top-0 z-[40] border-b border-[#ff003c]/20">
                       <tr className="text-[#ff003c] text-[9px] uppercase tracking-widest font-mono">
                         <th className="px-4 py-2 w-[40%]">TIMESTAMP</th>
-                        <th className="px-4 py-2 w-[35%]">ACTION PROTOCOL</th>
+                        <th className="px-4 py-2 w-[35%]">ACTION COMMIT</th>
                         <th className="px-4 py-2 text-right w-[25%]">UPLINK</th>
                       </tr>
                     </thead>
                     <tbody className="font-mono text-xs text-white/90">
                       {workoutLogs.length > 0 ? (
                         workoutLogs.map((log) => {
-                          // Format nice name
                           let protocolLabel = log.activity_type.toUpperCase();
-                          if (log.activity_type === 'pushups') protocolLabel = 'FRC_COMP';
-                          else if (log.activity_type === 'running') protocolLabel = 'KNT_EXC';
-                          else if (log.activity_type === 'pullups') protocolLabel = 'VEL_TRAC';
-                          else if (log.activity_type === 'squats') protocolLabel = 'MET_LOAD';
-                          else if (log.activity_type === 'plank') protocolLabel = 'STB_SUSP';
+                          if (log.activity_type === 'pushups') protocolLabel = 'PUSHUPS';
+                          else if (log.activity_type === 'running') protocolLabel = 'RUNNING';
+                          else if (log.activity_type === 'pullups') protocolLabel = 'PULLUPS';
+                          else if (log.activity_type === 'squats') protocolLabel = 'SQUATS';
+                          else if (log.activity_type === 'plank') protocolLabel = 'PLANK';
 
                           return (
                             <tr key={log.id} className="hover:bg-white/5 border-b border-white/5 transition-colors">
@@ -696,7 +695,7 @@ export default function App() {
             onChange={(e) => setCliInput(e.target.value)}
             onKeyDown={handleCLI}
             className="bg-transparent border-none outline-none text-white font-mono text-xs flex-1 placeholder:text-[#ff003c]/40 uppercase" 
-            placeholder="type 'commit frc 10' or 'sync' or 'export' or 'help'..."
+            placeholder="type 'commit str 10' or 'sync' or 'export' or 'help'..."
           />
         </div>
 
