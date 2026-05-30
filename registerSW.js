@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/ascension-forger-grid/sw.js', { scope: '/ascension-forger-grid/' })})}
